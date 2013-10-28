@@ -1,6 +1,6 @@
 use std::libc::{c_char, c_int, c_void, c_ulong, c_uint};
 
-#[link_args = "-lnss3"]
+#[link_args = "-lnss3 -lnspr4"]
 #[nolink]
 extern "C" { }
 
@@ -14,6 +14,11 @@ pub static SECWouldBlock: c_int = -2;
 
 pub static PRTrue: PRBool = 1;
 pub static PRFalse: PRBool = 0;
+
+pub static PR_AF_INET: c_int = 2;
+
+pub static NSS_INIT_READONLY: c_uint = 0x1;
+pub static NSS_INIT_PK11RELOAD: c_uint = 0x80;
 
 pub struct SECMODModule {    
     arena: *c_void, //TODO
@@ -56,4 +61,8 @@ pub static TLS_RSA_WITH_AES_128_CBC_SHA: c_int = 0x002f;
 
 externfn!(fn NSS_Init(configdir: *c_char) -> SECStatus)
 externfn!(fn NSS_NoDB_Init(configdir: *c_char) -> SECStatus)
+externfn!(fn NSS_InitContext(configdir: *c_char, certPrefix: *c_char, keyPrefix: *c_char, secmodName: *c_char, initStrings: *c_void, flags: c_uint) -> *c_void)
+externfn!(fn NSS_ShutdownContext(ctx: *c_void))
+externfn!(fn SECMOD_DestroyModule(module: *SECMODModule))
 externfn!(fn SECMOD_LoadUserModule(moduleSpec: *c_char, parent: *SECMODModule, recurse: PRBool) -> *SECMODModule)
+externfn!(fn PR_OpenTCPSocket(af: c_int) -> *c_void)
