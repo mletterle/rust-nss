@@ -13,5 +13,7 @@ fn test_init() {
 fn test_ssl_connect(){
     let mut nss = NSS::new();
     nss.init();
-//    ssl_connect(SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 443 });
+    let mut sslstream = ssl_connect(SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 1234 }, ~"localhost");
+    sslstream.write([116, 101, 115, 116]);
+    nss.uninit();
 }
