@@ -3,6 +3,8 @@
 #[link(name = "nss", vers = "0.0")]
 extern mod nspr;
 
+extern mod extra;
+
 use std::os;
 use std::ptr;
 use std::rt::io::{Reader, Writer};
@@ -11,6 +13,7 @@ pub use raw::nss::*;
 use nspr::raw::nspr::*;
 use std::libc::{c_void};
 use std::vec;
+use extra::sync::Mutex;
 
 #[cfg(test)]
 mod tests;
@@ -21,18 +24,22 @@ pub struct NSS {
 
     nss_ctx: Option<*c_void>,
     nss_cert_mod: Option<SECMODModule>,
-
+    nss_mutex: Mutex,
 }
 
 impl NSS {
 
 pub fn new() -> NSS {
- NSS { nss_ctx: None, nss_cert_mod: None }
+ NSS { nss_ctx: None, nss_cert_mod: None, nss_mutex: Mutex::new() }
 }
 
+
 pub fn init(&mut self) -> SECStatus {
-  
-  if(!self.nss_ctx.is_none()) { return SECSuccess; }
+  let no_nss = 
+  do self.nss_mutex.lock {
+     self.nss_ctx.is_none()
+  };
+  if(!no_nss) { return SECSuccess; }
   let dir = format!("sql:{}/.pki/nssdb", os::getenv("HOME").unwrap_or(~"")).to_owned();
   dir.with_c_str(|nssdb| self.nss_ctx = Some(unsafe { NSS_InitContext(nssdb, ptr::null(), ptr::null(), ptr::null(), ptr::null(), NSS_INIT_READONLY | NSS_INIT_PK11RELOAD) }));
   info!("Error {}", unsafe { std::str::raw::from_c_str(PR_ErrorToName(PR_GetError())) } );
