@@ -1,19 +1,21 @@
 #[feature(struct_variant)];
 #[feature(globs)];
 #[link(name = "nss", vers = "0.0")]
+extern mod nspr;
 
 use std::os;
 use std::ptr;
 use std::rt::io::{Reader, Writer};
 use std::rt::io::net::ip::{SocketAddr, IpAddr, Ipv4Addr};
-use ffi::*;
+pub use raw::nss::*;
+use nspr::raw::nspr::*;
 use std::libc::{c_void};
 use std::vec;
 
 #[cfg(test)]
 mod tests;
 
-mod ffi;
+pub mod raw { pub mod nss; }
 
 pub struct NSS { 
 
@@ -86,7 +88,7 @@ impl Reader for SSLStream {
     match unsafe { PR_Read(self.sslfd, vec::raw::to_ptr(buf) as *c_void, buf.len() as i32) } {
      0 => { self.is_eof = true; None },
      -1 => None,
-     _ => Some(buf.len()) //TODO: This is certainly wrong.
+     bytes_read => Some(bytes_read as uint)
     }
 }
        fn eof(&mut self) -> bool {
