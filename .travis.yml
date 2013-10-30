@@ -1,0 +1,14 @@
+before_install:
+  - yes | sudo add-apt-repository ppa:hansjorg/rust
+  - sudo apt-get update
+install:
+  - sudo apt-get install rust-nightly
+  - git clone https://github.com/mletterle/rust-nspr.git $TRAVIS_BUILD_DIR/rust-nspr
+  - cd rust-nspr/src/libnspr
+  - rustc --lib lib.rs -o nspr
+  - cd $TRAVIS_BUILD_DIR/src/libnss
+before_script:
+  - rustc --test lib.rs -o test-nss -L $TRAVIS_BUILD_DIR/rust-nspr/src/libnspr
+  - openssl s_server -pass pass:nope -cert $TRAVIS_BUILD_DIR/src/libnss/tests/files/testcert.pem -accept 1234 -key $TRAVIS_BUILD_DIR/src/libnss/tests/files/privkey.pem -quiet &
+script:
+  - ./test-nss
