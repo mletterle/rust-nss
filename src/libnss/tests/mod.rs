@@ -4,12 +4,13 @@ use super::{ssl_connect, NSS};
 
 #[test]
 fn test_init() {
-  // let mut nss = NSS::new();
- //  assert_eq!(nss.init(), SECSuccess);
- //  nss.uninit();
+   let mut nss = NSS::new();
+   assert_eq!(nss.init(), SECSuccess);
+   nss.uninit();
 }
 
 #[test]
+#[should_fail]
 fn test_ssl_connect(){
     let mut nss = NSS::new();
     nss.init();
