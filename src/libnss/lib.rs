@@ -13,7 +13,7 @@ pub use raw::nss::*;
 use nspr::raw::nspr::*;
 use std::libc::{c_void};
 use std::vec;
-use extra::sync::Mutex;
+use extra::sync::RWLock;
 
 #[cfg(test)]
 mod tests;
@@ -24,26 +24,24 @@ pub struct NSS {
 
     nss_ctx: Option<*c_void>,
     nss_cert_mod: Option<SECMODModule>,
-    nss_mutex: Mutex,
 }
 
 impl NSS {
 
 pub fn new() -> NSS {
- NSS { nss_ctx: None, nss_cert_mod: None, nss_mutex: Mutex::new() }
+ NSS { nss_ctx: None, nss_cert_mod: None  }
 }
 
 
 pub fn init(&mut self) -> SECStatus {
-  let no_nss = 
-  do self.nss_mutex.lock {
-     self.nss_ctx.is_none()
-  };
+  let lock = RWLock::new();
+  let no_nss = do lock.write { self.nss_ctx.is_none() };
+  
   if(!no_nss) { return SECSuccess; }
+
   let dir = format!("sql:{}/.pki/nssdb", os::getenv("HOME").unwrap_or(~"")).to_owned();
   dir.with_c_str(|nssdb| self.nss_ctx = Some(unsafe { NSS_InitContext(nssdb, ptr::null(), ptr::null(), ptr::null(), ptr::null(), NSS_INIT_READONLY | NSS_INIT_PK11RELOAD) }));
-  info!("Error {}", unsafe { std::str::raw::from_c_str(PR_ErrorToName(PR_GetError())) } );
-  unsafe{  NSS_SetDomesticPolicy() };
+   do nss_cmd {  unsafe { NSS_SetDomesticPolicy() } };
   self.nss_cert_mod = Some(unsafe { *SECMOD_LoadUserModule("library=libnssckbi.so name=\"Root Certs\"".to_c_str().unwrap(),  ptr::null(), PRFalse)});
   if(self.nss_cert_mod.unwrap().loaded != PRTrue)
   {
@@ -54,7 +52,9 @@ SECSuccess
 }
 
 pub fn uninit(&mut self) -> SECStatus {
-    if(self.nss_ctx.is_none()) { return SECSuccess; }
+    let lock = RWLock::new();
+    let no_nss = do lock.write { self.nss_ctx.is_none() };
+    if(no_nss) { return SECSuccess; }
     unsafe {
     SECMOD_DestroyModule(&self.nss_cert_mod.unwrap());
     NSS_ShutdownContext(self.nss_ctx.unwrap());
