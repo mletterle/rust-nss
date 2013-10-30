@@ -70,19 +70,31 @@ pub fn uninit(&mut self) -> SECStatus {
 
 pub fn ssl_connect(addr: SocketAddr, hostname: ~str) -> SSLStream
 {
-    let oldmodel = unsafe { PR_OpenTCPSocket(PR_AF_INET) };
-    let model = unsafe { SSL_ImportFD(ptr::null(), oldmodel) };
-    unsafe { SSL_OptionSet(model, SSL_ENABLE_SSL2, PRFalse) };
-    unsafe { SSL_OptionSet(model, SSL_V2_COMPATIBLE_HELLO, PRFalse) };
-    unsafe { SSL_OptionSet(model, SSL_ENABLE_DEFLATE, PRFalse) };
-    let sslfd = unsafe { PR_OpenTCPSocket(PR_AF_INET) };
-    unsafe { PR_Connect(sslfd, &PRNetAddr { family: PR_AF_INET, ip: PR_htonl(IpAddrToBytes(addr.ip)), port: PR_htons(addr.port), pad: [0,0,0,0,0,0,0,0] }, 30000) };
-    let ssl_socket = unsafe { SSL_ImportFD(model, sslfd) };
-    unsafe { PR_Close(model); }
-    unsafe { SSL_ResetHandshake(ssl_socket, PRFalse); }
-    unsafe { SSL_SetURL(ssl_socket, hostname.to_c_str().unwrap()); }
-    unsafe { SSL_ForceHandshake(ssl_socket); }
+    unsafe {
+
+    let oldmodel = PR_OpenTCPSocket(PR_AF_INET);
+    let model = SSL_ImportFD(ptr::null(), oldmodel);
+    do nss_cmd { SSL_OptionSet(model, SSL_ENABLE_SSL2, PRFalse) };
+    do nss_cmd { SSL_OptionSet(model, SSL_V2_COMPATIBLE_HELLO, PRFalse) };
+    do nss_cmd { SSL_OptionSet(model, SSL_ENABLE_DEFLATE, PRFalse) };
+    let sslfd = PR_OpenTCPSocket(PR_AF_INET);
+    PR_Connect(sslfd, &PRNetAddr { family: PR_AF_INET, ip: PR_htonl(IpAddrToBytes(addr.ip)), port: PR_htons(addr.port), pad: [0,0,0,0,0,0,0,0] }, 30000);
+    let ssl_socket = SSL_ImportFD(model, sslfd);
+    PR_Close(model); 
+    do nss_cmd { SSL_ResetHandshake(ssl_socket, PRFalse) };
+    do nss_cmd { SSL_SetURL(ssl_socket, hostname.to_c_str().unwrap()) };
+    do nss_cmd { SSL_ForceHandshake(ssl_socket) };
+    
     SSLStream { sslfd: ssl_socket, is_eof: false }   
+
+    }
+}
+
+pub fn nss_cmd(blk: &fn() -> SECStatus) {
+    let result = blk();
+    if(result == SECFailure) {
+      fail!("NSS Failed with {}", unsafe { std::str::raw::from_c_str(PR_ErrorToName(PR_GetError())) });
+    }
 }
 
 pub struct SSLStream {

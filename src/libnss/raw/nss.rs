@@ -1,6 +1,6 @@
 extern mod nspr;
 
-use std::libc::{c_char, c_int, c_void, c_ulong, c_uint, c_short, c_ushort};
+use std::libc::{c_char, c_int, c_void, c_ulong, c_uint};
 pub use nspr::raw::nspr::*;
 
 #[link_args = "-lnss3 -lssl3"]
