@@ -18,3 +18,14 @@ fn test_ssl_connect(){
     sslstream.write([116, 101, 115, 116]);
     nss.uninit();
 }
+
+#[test]
+fn test_set_cfg_dir() {
+    let mut nss = NSS::new();
+    nss.set_cfg_dir("testdir");
+    let cfgdir = match nss.cfg_dir {
+        Some(ref s) => s.to_owned(),
+        None => ~"Unknown!",
+    };
+    assert_eq!(cfgdir, ~"testdir");
+}

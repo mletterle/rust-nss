@@ -65,6 +65,7 @@ pub struct CK_VERSION {
 externfn!(fn NSS_Init(configdir: *c_char) -> SECStatus)
 externfn!(fn NSS_NoDB_Init(configdir: *c_char) -> SECStatus)
 externfn!(fn NSS_InitContext(configdir: *c_char, certPrefix: *c_char, keyPrefix: *c_char, secmodName: *c_char, initStrings: *c_void, flags: c_uint) -> *c_void)
+externfn!(fn NSS_IsInitialized() -> PRBool)
 externfn!(fn NSS_ShutdownContext(ctx: *c_void))
 externfn!(fn NSS_SetDomesticPolicy() -> SECStatus)
 externfn!(fn SECMOD_DestroyModule(module: *SECMODModule))
