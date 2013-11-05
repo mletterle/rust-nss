@@ -3,7 +3,7 @@ extern mod nspr;
 use std::libc::{c_char, c_int, c_void, c_ulong, c_uint};
 pub use nspr::raw::nspr::*;
 
-#[link_args = "-lnss3 -lssl3"]
+#[link_args = "-lnss3 -lssl3 -lsmime3"]
 #[nolink]
 extern "C" { }
 
@@ -61,6 +61,52 @@ pub struct CK_VERSION {
     minor: c_uint,
 }
 
+pub enum SECCertUsage {
+  SSLClient = 0,
+  SSLServer = 1,
+  SSLServerWithStepUp = 2,
+  SSLCA = 3,
+  EmailSigner = 4,
+  EmailRecipient = 5,
+  ObjectSigner = 6,
+  UserCertImport = 7,
+  UsageVerifyCA = 8,
+  ProtectedObjectSigner = 9,
+  StatusResponder = 10,
+  AnyCA = 11,
+}
+
+pub enum SECItemType {
+    Buffer = 0,
+    ClearDataBuffer = 1,
+    CipherDataBuffer = 2,
+    DERCertBuffer = 3,
+    EncodedCertBuffer = 4,
+    DERNameBuffer = 5,
+    EncodedNameBuffer = 6,
+    AsciiNameString = 7,
+    AsciiString = 8,
+    DEROID = 9,
+    UnsignedInteger = 10,
+    UTCTime = 11,
+    GeneralizedTime = 12,
+    VisibleString = 13,
+    UTF8String = 14,
+    BMPString = 15,
+}
+
+pub struct SECItem {
+    sectype: SECItemType,
+    data: *c_char,
+    len: c_uint,
+}
+
+pub struct CERTCertTrust {
+    sslFlags: c_int,
+    emailFlags: c_int,
+    objectSigningFlags: c_int,
+}
+
 
 externfn!(fn NSS_Init(configdir: *c_char) -> SECStatus)
 externfn!(fn NSS_NoDB_Init(configdir: *c_char) -> SECStatus)
@@ -68,8 +114,10 @@ externfn!(fn NSS_InitContext(configdir: *c_char, certPrefix: *c_char, keyPrefix:
 externfn!(fn NSS_IsInitialized() -> PRBool)
 externfn!(fn NSS_ShutdownContext(ctx: *c_void))
 externfn!(fn NSS_SetDomesticPolicy() -> SECStatus)
+
 externfn!(fn SECMOD_DestroyModule(module: *SECMODModule))
 externfn!(fn SECMOD_LoadUserModule(moduleSpec: *c_char, parent: *SECMODModule, recurse: PRBool) -> *SECMODModule)
+
 externfn!(fn SSL_ImportFD(model: *c_void, fd: *c_void) -> *c_void)
 externfn!(fn SSL_OptionSet(fd: *c_void, option: c_int, on: PRBool) -> SECStatus)
 externfn!(fn SSL_ResetHandshake(fd: *c_void, asServer: PRBool) -> SECStatus)
@@ -77,3 +125,7 @@ externfn!(fn SSL_ForceHandshake(fd: *c_void) -> SECStatus)
 externfn!(fn SSL_SetURL(fd: *c_void, url: *c_char) -> c_int)
 externfn!(fn SSL_CipherPolicySet(cipher: c_int, policy: c_int) -> SECStatus)
 
+externfn!(fn CERT_GetDefaultCertDB() -> *c_void) 
+externfn!(fn CERT_DecodeCertFromPackage(certbuf: *c_char, certlen: c_int) -> *c_void)
+externfn!(fn CERT_DecodeTrustString(trust: *CERTCertTrust, trusts: *c_char) -> SECStatus)
+externfn!(fn CERT_ChangeCertTrust(certdb: *c_void, cert: *c_void, trust: *CERTCertTrust) -> SECStatus)

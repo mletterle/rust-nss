@@ -7,15 +7,17 @@ extern mod nspr;
 
 extern mod extra;
 
-use std::os;
-use std::ptr;
-use std::rt::io::{Reader, Writer};
+use std::rt::io::fs::{File};
+use std::{os, ptr, vec, str};
+use std::rt::io::{Reader, Writer, io_error};
 use std::rt::io::net::ip::{SocketAddr, IpAddr, Ipv4Addr};
+
+use std::path::Path;
+use std::libc::{c_void};
+use std::unstable::atomics::{AtomicBool, Acquire, Release, INIT_ATOMIC_BOOL};
+
 pub use raw::nss::*;
 use nspr::raw::nspr::*;
-use std::libc::{c_void};
-use std::vec;
-use std::unstable::atomics::{AtomicBool, Acquire, Release, INIT_ATOMIC_BOOL};
 
 #[cfg(test)]
 mod tests;
@@ -81,9 +83,6 @@ pub fn uninit(&mut self) -> SECStatus {
     SECSuccess
 }
 
-}
-
-
 pub fn ssl_connect(addr: SocketAddr, hostname: ~str) -> SSLStream
 {
     unsafe {
@@ -106,6 +105,26 @@ pub fn ssl_connect(addr: SocketAddr, hostname: ~str) -> SSLStream
     }
 }
 
+pub fn trust_cert(file: ~str) -> SECStatus
+{
+    let path = &Path::new(file);
+    let mut retStatus = SECFailure;
+    if(!path.exists()){ return retStatus; }
+    do io_error::cond.trap(|_| { retStatus = SECFailure; }).inside
+    {
+      unsafe
+      {
+        let pemdata = str::from_utf8_owned(File::open(path).read_to_end());
+        let cert = CERT_DecodeCertFromPackage(pemdata.to_c_str().unwrap(), pemdata.to_c_str().len() as i32) ;
+        let trust = CERTCertTrust { sslFlags: 0, emailFlags: 0, objectSigningFlags: 0 };
+        CERT_DecodeTrustString(&trust, "TCu,Cu,Tu".to_c_str().unwrap());
+        retStatus = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), cert, &trust);
+      }
+    }
+    retStatus
+}
+
+}
 pub fn nss_cmd(blk: &fn() -> SECStatus) {
     let result = blk();
     if(result == SECFailure) {
