@@ -26,6 +26,9 @@ pub mod raw { pub mod nss; }
 
 static mut NSS_INIT_START: AtomicBool = INIT_ATOMIC_BOOL;
 static mut NSS_INIT_END: AtomicBool = INIT_ATOMIC_BOOL;
+static mut NSS_UNINIT_START: AtomicBool = INIT_ATOMIC_BOOL;
+static mut NSS_UNINIT_END: AtomicBool = INIT_ATOMIC_BOOL;
+
 
 pub struct NSS { 
 
@@ -55,12 +58,20 @@ pub fn init(&mut self) -> SECStatus {
   let cfg_dir = match self.cfg_dir { 
             Some(ref s) => s.to_owned(),
             None => ~"", };
-                                
+  let cfg_path = &Path::new(cfg_dir.clone());                              
   let nss_path = format!("sql:{}", cfg_dir);
 
   unsafe { 
      if NSS_INIT_START.swap(true, Acquire) { while !NSS_INIT_END.load(Release) { } }
+     if(!cfg_path.exists()) {
+             if(NSS_NoDB_Init(ptr::null()) == SECFailure){
+                    fail!("NSS is borked!");
+             }
+                    
+     }
+     else {
      nss_path.with_c_str(|nssdb| self.nss_ctx = Some(NSS_InitContext(nssdb, ptr::null(), ptr::null(), ptr::null(), ptr::null(), NSS_INIT_READONLY | NSS_INIT_PK11RELOAD)));
+     }
      NSS_INIT_END.store(true, Release);
   }
   do nss_cmd {  unsafe { NSS_SetDomesticPolicy() } };
@@ -75,11 +86,13 @@ SECSuccess
 
 pub fn uninit(&mut self) -> SECStatus {
     unsafe {
+    if NSS_UNINIT_START.swap(true, Acquire) { while !NSS_UNINIT_END.load(Release) { } }
     if(NSS_IsInitialized() == PRFalse) { return SECSuccess; }
     SECMOD_DestroyModule(&self.nss_cert_mod.unwrap());
-    NSS_ShutdownContext(self.nss_ctx.unwrap());
-    }
+    if(!self.nss_ctx.is_none()) { NSS_ShutdownContext(self.nss_ctx.unwrap()) };
     self.nss_ctx = None;
+    NSS_UNINIT_END.store(true, Release);
+    }
     SECSuccess
 }
 
