@@ -96,28 +96,6 @@ pub fn uninit(&mut self) -> SECStatus {
     SECSuccess
 }
 
-pub fn ssl_connect(addr: SocketAddr, hostname: ~str) -> SSLStream
-{
-    unsafe {
-
-    let oldmodel = PR_OpenTCPSocket(PR_AF_INET);
-    let model = SSL_ImportFD(ptr::null(), oldmodel);
-    do nss_cmd { SSL_OptionSet(model, SSL_ENABLE_SSL2, PRFalse) };
-    do nss_cmd { SSL_OptionSet(model, SSL_V2_COMPATIBLE_HELLO, PRFalse) };
-    do nss_cmd { SSL_OptionSet(model, SSL_ENABLE_DEFLATE, PRFalse) };
-    let sslfd = PR_OpenTCPSocket(PR_AF_INET);
-    PR_Connect(sslfd, &PRNetAddr { family: PR_AF_INET, ip: PR_htonl(IpAddrToBytes(addr.ip)), port: PR_htons(addr.port), pad: [0,0,0,0,0,0,0,0] }, 30000);
-    let ssl_socket = SSL_ImportFD(model, sslfd);
-    PR_Close(model); 
-    do nss_cmd { SSL_ResetHandshake(ssl_socket, PRFalse) };
-    do nss_cmd { SSL_SetURL(ssl_socket, hostname.to_c_str().unwrap()) };
-    do nss_cmd { SSL_ForceHandshake(ssl_socket) };
-    
-    SSLStream { sslfd: ssl_socket, is_eof: false }   
-
-    }
-}
-
 pub fn trust_cert(file: ~str) -> SECStatus
 {
     let path = &Path::new(file);
@@ -148,6 +126,37 @@ pub fn nss_cmd(blk: &fn() -> SECStatus) {
 pub struct SSLStream {
     sslfd: *c_void,
     is_eof: bool,
+}
+
+impl SSLStream {
+
+pub fn connect(addr: SocketAddr, hostname: ~str) -> SSLStream
+{
+    unsafe {
+
+    let oldmodel = PR_OpenTCPSocket(PR_AF_INET);
+    let model = SSL_ImportFD(ptr::null(), oldmodel);
+    do nss_cmd { SSL_OptionSet(model, SSL_ENABLE_SSL2, PRFalse) };
+    do nss_cmd { SSL_OptionSet(model, SSL_V2_COMPATIBLE_HELLO, PRFalse) };
+    do nss_cmd { SSL_OptionSet(model, SSL_ENABLE_DEFLATE, PRFalse) };
+    let sslfd = PR_OpenTCPSocket(PR_AF_INET);
+    PR_Connect(sslfd, &PRNetAddr { family: PR_AF_INET, ip: PR_htonl(IpAddrToBytes(addr.ip)), port: PR_htons(addr.port), pad: [0,0,0,0,0,0,0,0] }, 30000);
+    let ssl_socket = SSL_ImportFD(model, sslfd);
+    PR_Close(model); 
+    do nss_cmd { SSL_ResetHandshake(ssl_socket, PRFalse) };
+    do nss_cmd { SSL_SetURL(ssl_socket, hostname.to_c_str().unwrap()) };
+    do nss_cmd { SSL_ForceHandshake(ssl_socket) };
+    
+    SSLStream { sslfd: ssl_socket, is_eof: false }   
+
+    }
+}
+
+
+pub fn disconnect(&mut self) -> PRStatus {
+        unsafe { PR_Close(self.sslfd) }
+}
+
 }
 
 impl Reader for SSLStream {

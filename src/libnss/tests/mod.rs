@@ -1,6 +1,6 @@
 use super::{SECSuccess, SECFailure};
 use std::rt::io::net::ip::{SocketAddr, Ipv4Addr};
-use super::NSS;
+use super::{NSS, SSLStream};
 
 #[test]
 fn test_init() {
@@ -10,12 +10,13 @@ fn test_init() {
 }
 
 #[test]
-fn test_ssl_connect(){
+fn test_ssl_connect_with_trusted_cert(){
     let mut nss = NSS::new();
     nss.init();
     do super::nss_cmd { NSS::trust_cert(~"tests/files/testcert.pem") };
-    let mut sslstream =  NSS::ssl_connect(SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 1234 }, ~"localhost");
+    let mut sslstream =  SSLStream::connect(SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 1234 }, ~"localhost");
     sslstream.write(bytes!("Hello SSL\n"));
+    sslstream.disconnect();
     nss.uninit();
 }
 
