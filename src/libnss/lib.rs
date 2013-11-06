@@ -26,8 +26,10 @@ pub mod raw { pub mod nss; }
 
 static mut NSS_INIT_START: AtomicBool = INIT_ATOMIC_BOOL;
 static mut NSS_INIT_END: AtomicBool = INIT_ATOMIC_BOOL;
+
 static mut NSS_UNINIT_START: AtomicBool = INIT_ATOMIC_BOOL;
 static mut NSS_UNINIT_END: AtomicBool = INIT_ATOMIC_BOOL;
+
 
 
 pub struct NSS { 
@@ -49,8 +51,9 @@ pub fn set_cfg_dir(&mut self, cfg_dir: &str)
 }
 
 pub fn init(&mut self) -> SECStatus {
-
-  if(unsafe { NSS_IsInitialized() } == PRTrue ) { return SECSuccess; }
+unsafe {
+  if(NSS_IsInitialized() == PRTrue ) { return SECSuccess; }
+  if NSS_INIT_START.swap(true, Acquire) { while !NSS_INIT_END.load(Release) { std::task::deschedule(); } }
 
   self.cfg_dir = match self.cfg_dir { 
             None => Some(os::getenv("SSL_DIR").unwrap_or(format!("{}/.pki/nssdb", os::getenv("HOME").unwrap_or(~"")).to_owned())),
@@ -61,33 +64,37 @@ pub fn init(&mut self) -> SECStatus {
   let cfg_path = &Path::new(cfg_dir.clone());                              
   let nss_path = format!("sql:{}", cfg_dir);
 
-  unsafe { 
-     if NSS_INIT_START.swap(true, Acquire) { while !NSS_INIT_END.load(Release) { } }
-     if(!cfg_path.exists()) {
-             if(NSS_NoDB_Init(ptr::null()) == SECFailure){
-                    fail!("NSS is borked!");
-             }
-                    
+  if(!cfg_path.exists()) {
+          if(NSS_NoDB_Init(ptr::null()) == SECFailure){
+                 fail!("NSS is borked!");
+          }
      }
      else {
      nss_path.with_c_str(|nssdb| self.nss_ctx = Some(NSS_InitContext(nssdb, ptr::null(), ptr::null(), ptr::null(), ptr::null(), NSS_INIT_READONLY | NSS_INIT_PK11RELOAD)));
      }
-     NSS_INIT_END.store(true, Release);
-  }
-  do nss_cmd {  unsafe { NSS_SetDomesticPolicy() } };
-  self.nss_cert_mod = Some(unsafe { *SECMOD_LoadUserModule("library=libnssckbi.so name=\"Root Certs\"".to_c_str().unwrap(),  ptr::null(), PRFalse)});
+ 
+  do nss_cmd { NSS_SetDomesticPolicy() };
+  self.nss_cert_mod = Some(*SECMOD_LoadUserModule("library=libnssckbi.so name=\"Root Certs\"".to_c_str().unwrap(),  ptr::null(), PRFalse));
   if(self.nss_cert_mod.unwrap().loaded != PRTrue)
   {
      return SECFailure;
   }
+  NSS_INIT_END.store(true, Release);
+ 
+  if(NSS_IsInitialized() == PRTrue) {
+    SECSuccess
+  }
+  else {
+    SECFailure
+  } 
 
-SECSuccess
+ }
 }
 
 pub fn uninit(&mut self) -> SECStatus {
     unsafe {
-    if NSS_UNINIT_START.swap(true, Acquire) { while !NSS_UNINIT_END.load(Release) { } }
     if(NSS_IsInitialized() == PRFalse) { return SECSuccess; }
+    if NSS_UNINIT_START.swap(true, Acquire) { while !NSS_UNINIT_END.load(Release) { std::task::deschedule(); } }
     SECMOD_DestroyModule(&self.nss_cert_mod.unwrap());
     if(!self.nss_ctx.is_none()) { NSS_ShutdownContext(self.nss_ctx.unwrap()) };
     self.nss_ctx = None;
@@ -119,8 +126,12 @@ pub fn trust_cert(file: ~str) -> SECStatus
 pub fn nss_cmd(blk: &fn() -> SECStatus) {
     let result = blk();
     if(result == SECFailure) {
-      fail!("NSS Failed with {}", unsafe { std::str::raw::from_c_str(PR_ErrorToName(PR_GetError())) });
+      fail!("NSS Failed with {}", get_nss_error());
     }
+}
+
+pub fn get_nss_error() -> ~str {
+    unsafe { std::str::raw::from_c_str(PR_ErrorToName(PR_GetError())) }
 }
 
 pub struct SSLStream {

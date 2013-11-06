@@ -1,11 +1,13 @@
 use super::{SECSuccess, SECFailure};
 use std::rt::io::net::ip::{SocketAddr, Ipv4Addr};
-use super::{NSS, SSLStream};
+use super::{NSS, SSLStream, get_nss_error};
 
 #[test]
 fn test_init() {
    let mut nss = NSS::new();
-   assert_eq!(nss.init(), SECSuccess);
+   let result = nss.init();
+   if(result != SECSuccess) { println(format!("NSS Failed with {}", get_nss_error())) };
+   assert_eq!(result, SECSuccess);
    nss.uninit();
 }
 
