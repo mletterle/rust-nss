@@ -4,11 +4,11 @@ before_install:
 install:
   - sudo apt-get install rust-nightly
   - git clone https://github.com/mletterle/rust-nspr.git $TRAVIS_BUILD_DIR/rust-nspr
-  - cd rust-nspr/src/libnspr
+  - cd rust-nspr/src/nspr
   - rustc --lib lib.rs -o nspr
-  - cd $TRAVIS_BUILD_DIR/src/libnss
+  - cd $TRAVIS_BUILD_DIR/src/nss
 before_script:
-  - rustc --test lib.rs -o test-nss -L $TRAVIS_BUILD_DIR/rust-nspr/src/libnspr
-  - openssl s_server -pass pass:nope -cert $TRAVIS_BUILD_DIR/src/libnss/tests/files/testcert.pem -accept 1234 -key $TRAVIS_BUILD_DIR/src/libnss/tests/files/privkey.pem -quiet &
+  - rustc --test lib.rs -o test-nss -L $TRAVIS_BUILD_DIR/rust-nspr/src/nspr
+  - openssl s_server -pass pass:nope -cert $TRAVIS_BUILD_DIR/src/nss/tests/files/testcert.pem -accept 1234 -key $TRAVIS_BUILD_DIR/src/nss/tests/files/privkey.pem -quiet &
 script:
   - ./test-nss
