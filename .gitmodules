@@ -1,0 +1,3 @@
+[submodule "rust-nspr"]
+	path = rust-nspr
+	url = https://github.com/mletterle/rust-nspr
