@@ -1,8 +1,8 @@
 extern mod std;
 
-use std::rt::io::fs::{File, mkdir_recursive};
+use std::io::fs::{File, mkdir_recursive};
 use std::{os, ptr, str};
-use std::rt::io::{Reader, io_error};
+use std::io::{Reader, io_error};
 
 use std::path::Path;
 use std::libc::{c_void};

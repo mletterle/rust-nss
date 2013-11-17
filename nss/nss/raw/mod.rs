@@ -3,10 +3,6 @@ extern mod nspr;
 use std::libc::{c_char, c_int, c_void, c_ulong, c_uint};
 pub use nspr::raw::nspr::*;
 
-#[link_args = "-lnss3 -lssl3 -lsmime3"]
-#[nolink]
-extern "C" { }
-
 pub type SECStatus = c_int;
 
 
@@ -107,25 +103,27 @@ pub struct CERTCertTrust {
     objectSigningFlags: c_int,
 }
 
+#[link_args = "-lnss3 -lssl3 -lsmime3"]
+extern "C" {
+pub fn NSS_Init(configdir: *c_char) -> SECStatus;
+pub fn NSS_NoDB_Init(configdir: *c_char) -> SECStatus;
+pub fn NSS_InitContext(configdir: *c_char, certPrefix: *c_char, keyPrefix: *c_char, secmodName: *c_char, initStrings: *c_void, flags: c_uint) -> *c_void;
+pub fn NSS_IsInitialized() -> PRBool;
+pub fn NSS_ShutdownContext(ctx: *c_void);
+pub fn NSS_SetDomesticPolicy() -> SECStatus;
 
-externfn!(fn NSS_Init(configdir: *c_char) -> SECStatus)
-externfn!(fn NSS_NoDB_Init(configdir: *c_char) -> SECStatus)
-externfn!(fn NSS_InitContext(configdir: *c_char, certPrefix: *c_char, keyPrefix: *c_char, secmodName: *c_char, initStrings: *c_void, flags: c_uint) -> *c_void)
-externfn!(fn NSS_IsInitialized() -> PRBool)
-externfn!(fn NSS_ShutdownContext(ctx: *c_void))
-externfn!(fn NSS_SetDomesticPolicy() -> SECStatus)
+pub fn SECMOD_DestroyModule(module: *SECMODModule);
+pub fn SECMOD_LoadUserModule(moduleSpec: *c_char, parent: *SECMODModule, recurse: PRBool) -> *SECMODModule;
 
-externfn!(fn SECMOD_DestroyModule(module: *SECMODModule))
-externfn!(fn SECMOD_LoadUserModule(moduleSpec: *c_char, parent: *SECMODModule, recurse: PRBool) -> *SECMODModule)
+pub fn SSL_ImportFD(model: *c_void, fd: *c_void) -> *c_void;
+pub fn SSL_OptionSet(fd: *c_void, option: c_int, on: PRBool) -> SECStatus;
+pub fn SSL_ResetHandshake(fd: *c_void, asServer: PRBool) -> SECStatus;
+pub fn SSL_ForceHandshake(fd: *c_void) -> SECStatus;
+pub fn SSL_SetURL(fd: *c_void, url: *c_char) -> c_int;
+pub fn SSL_CipherPolicySet(cipher: c_int, policy: c_int) -> SECStatus;
 
-externfn!(fn SSL_ImportFD(model: *c_void, fd: *c_void) -> *c_void)
-externfn!(fn SSL_OptionSet(fd: *c_void, option: c_int, on: PRBool) -> SECStatus)
-externfn!(fn SSL_ResetHandshake(fd: *c_void, asServer: PRBool) -> SECStatus)
-externfn!(fn SSL_ForceHandshake(fd: *c_void) -> SECStatus)
-externfn!(fn SSL_SetURL(fd: *c_void, url: *c_char) -> c_int)
-externfn!(fn SSL_CipherPolicySet(cipher: c_int, policy: c_int) -> SECStatus)
-
-externfn!(fn CERT_GetDefaultCertDB() -> *c_void) 
-externfn!(fn CERT_DecodeCertFromPackage(certbuf: *c_char, certlen: c_int) -> *c_void)
-externfn!(fn CERT_DecodeTrustString(trust: *CERTCertTrust, trusts: *c_char) -> SECStatus)
-externfn!(fn CERT_ChangeCertTrust(certdb: *c_void, cert: *c_void, trust: *CERTCertTrust) -> SECStatus)
+pub fn CERT_GetDefaultCertDB() -> *c_void;
+pub fn CERT_DecodeCertFromPackage(certbuf: *c_char, certlen: c_int) -> *c_void;
+pub fn CERT_DecodeTrustString(trust: *CERTCertTrust, trusts: *c_char) -> SECStatus;
+pub fn CERT_ChangeCertTrust(certdb: *c_void, cert: *c_void, trust: *CERTCertTrust) -> SECStatus;
+}

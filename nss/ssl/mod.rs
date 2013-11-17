@@ -1,6 +1,6 @@
 use std::{ptr, vec};
-use std::rt::io::{Reader, Writer};
-use std::rt::io::net::ip::{SocketAddr, IpAddr, Ipv4Addr};
+use std::io::{Reader, Writer};
+use std::io::net::ip::{SocketAddr, IpAddr, Ipv4Addr};
 
 use std::libc::{c_void};
 

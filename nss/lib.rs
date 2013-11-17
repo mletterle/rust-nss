@@ -6,9 +6,6 @@ extern mod nspr;
 
 extern mod extra;
 
-#[cfg(test)]
-mod tests;
-
 pub mod nss;
 pub mod ssl;
 

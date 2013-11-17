@@ -1,7 +1,9 @@
-use super::nss::{NSS, get_nss_error};
-use super::nss::raw::{SECSuccess, SECFailure};
-use std::rt::io::net::ip::{SocketAddr, Ipv4Addr};
-use super::ssl::{SSLStream};
+extern mod nss;
+
+use nss::nss::{NSS, get_nss_error};
+use nss::nss::raw::{SECSuccess, SECFailure};
+use std::io::net::ip::{SocketAddr, Ipv4Addr};
+use nss::ssl::{SSLStream};
 
 #[test]
 fn test_init() {
@@ -16,7 +18,7 @@ fn test_init() {
 fn test_ssl_connect_with_trusted_cert(){
     let mut nss = NSS::new();
     nss.init();
-    do super::nss::nss_cmd { NSS::trust_cert(~"tests/files/testcert.pem") };
+    do nss::nss::nss_cmd { NSS::trust_cert(~"files/testcert.pem") };
     let mut sslstream =  SSLStream::connect(SocketAddr { ip: Ipv4Addr(127, 0, 0, 1), port: 1234 }, ~"localhost");
     sslstream.write(bytes!("Hello SSL\n"));
     sslstream.disconnect();
@@ -47,7 +49,7 @@ fn test_trust_cert_with_invalid_path() {
 fn test_trust_cert_with_valid_path() {
     let mut nss = NSS::new();
     nss.init();
-    let import = NSS::trust_cert(~"tests/files/testcert.pem");
+    let import = NSS::trust_cert(~"files/testcert.pem");
     assert_eq!(import, SECSuccess);
     nss.uninit();
 }
