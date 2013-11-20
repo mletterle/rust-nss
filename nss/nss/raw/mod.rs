@@ -103,6 +103,8 @@ pub struct CERTCertTrust {
     objectSigningFlags: c_int,
 }
 
+pub type SSLBadCertHandler = proc(arg: *c_void, fd: *c_void) -> SECStatus;
+
 #[link_args = "-lnss3 -lssl3 -lsmime3"]
 extern "C" {
 pub fn NSS_Init(configdir: *c_char) -> SECStatus;
@@ -121,6 +123,7 @@ pub fn SSL_ResetHandshake(fd: *c_void, asServer: PRBool) -> SECStatus;
 pub fn SSL_ForceHandshake(fd: *c_void) -> SECStatus;
 pub fn SSL_SetURL(fd: *c_void, url: *c_char) -> c_int;
 pub fn SSL_CipherPolicySet(cipher: c_int, policy: c_int) -> SECStatus;
+pub fn SSL_BadCertHook(fd: *c_void,  callback_fn: SSLBadCertHandler, arg: *c_void) -> SECStatus;
 
 pub fn CERT_GetDefaultCertDB() -> *c_void;
 pub fn CERT_DecodeCertFromPackage(certbuf: *c_char, certlen: c_int) -> *c_void;

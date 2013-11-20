@@ -38,11 +38,29 @@ pub fn set_cfg_dir(&mut self, cfg_dir: &str)
   self.cfg_dir = Some(cfg_dir.to_owned());
 }
 
-pub fn init(&mut self) -> SECStatus {
+pub fn nodb_init(&mut self) -> SECStatus {
+unsafe {
+        if(self.start_init() == SECSuccess) { return SECSuccess; }
+
+        if(NSS_NoDB_Init(ptr::null()) == SECFailure){
+             fail!("NSS is borked!");
+        }
+
+        self.finish_init()
+}
+}
+
+fn start_init(&mut self) -> SECStatus {
 unsafe {
   if(NSS_IsInitialized() == PRTrue ) { return SECSuccess; }
   if NSS_INIT_START.swap(true, Acquire) { while !NSS_INIT_END.load(Release) { std::task::deschedule(); } }
+  SECFailure //Not really...
+}
+}
 
+pub fn init(&mut self) -> SECStatus {
+unsafe {
+  if(self.start_init() == SECSuccess) { return SECSuccess; }
   self.cfg_dir = match self.cfg_dir { 
             None => Some(os::getenv("SSL_DIR").unwrap_or(format!("{}/.pki/nssdb", os::getenv("HOME").unwrap_or(~".")).to_owned())),
             Some(ref s) => Some(s.to_owned()), };
@@ -72,7 +90,12 @@ unsafe {
                     fail!("NSS is borked!");
                 }
      }
- 
+  self.finish_init()
+ }
+}
+
+fn finish_init(&mut self) -> SECStatus {
+unsafe {
   do nss_cmd { NSS_SetDomesticPolicy() };
   self.nss_cert_mod = Some(*SECMOD_LoadUserModule("library=libnssckbi.so name=\"Root Certs\"".to_c_str().unwrap(),  ptr::null(), PRFalse));
   if(self.nss_cert_mod.unwrap().loaded != PRTrue) {
@@ -86,8 +109,7 @@ unsafe {
   else {
     SECFailure
   } 
-
- }
+}
 }
 
 pub fn uninit(&mut self) -> SECStatus {

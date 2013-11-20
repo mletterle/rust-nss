@@ -16,8 +16,11 @@ pub struct SSLStream {
 
 impl SSLStream {
 
-pub fn connect(addr: SocketAddr, hostname: ~str) -> SSLStream
-{
+pub fn connect(addr: SocketAddr, hostname: ~str) -> SSLStream {
+        SSLStream::connect_opt(addr, hostname, None)
+}
+
+pub fn connect_opt(addr: SocketAddr, hostname: ~str, badcert_hook: Option<SSLBadCertHandler>) -> SSLStream {
     unsafe {
 
     let oldmodel = PR_OpenTCPSocket(PR_AF_INET);
@@ -29,6 +32,10 @@ pub fn connect(addr: SocketAddr, hostname: ~str) -> SSLStream
     PR_Connect(sslfd, &PRNetAddr { family: PR_AF_INET, ip: PR_htonl(IpAddrToBytes(addr.ip)), port: PR_htons(addr.port), pad: [0,0,0,0,0,0,0,0] }, 30000);
     let ssl_socket = SSL_ImportFD(model, sslfd);
     PR_Close(model); 
+    match badcert_hook {
+                Some(f) => { SSL_BadCertHook(ssl_socket, f, ptr::null()); },
+                None => { }
+    }
     do nss_cmd { SSL_ResetHandshake(ssl_socket, PRFalse) };
     do nss_cmd { SSL_SetURL(ssl_socket, hostname.to_c_str().unwrap()) };
     do nss_cmd { SSL_ForceHandshake(ssl_socket) };
