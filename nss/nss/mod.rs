@@ -67,16 +67,16 @@ unsafe {
   let cfg_dir = match self.cfg_dir { 
             Some(ref s) => s.to_owned(),
             None => ~"", };
-  let mut cfg_path = Path::new(cfg_dir.clone());                              
+  let mut cfg_path = Path::init(cfg_dir.clone());                              
   let mut nss_path = format!("sql:{}", cfg_dir);
 
   if(!cfg_path.exists()) {
-          let system_path = &Path::new("/etc/pki/nssdb");
+          let system_path = &Path::init("/etc/pki/nssdb");
           if(!system_path.exists()) {
-             do io_error::cond.trap(|_|{}).inside { mkdir_recursive(&cfg_path, 0b111_111_111); }
+            io_error::cond.trap(|_|{}).inside(|| mkdir_recursive(&cfg_path, 0b111_111_111));
           }
           else {
-            cfg_path = Path::new("/etc/pki/nssdb");
+            cfg_path = Path::init("/etc/pki/nssdb");
             nss_path = format!("sql:{}", system_path.as_str().unwrap());
           }
      }
@@ -96,7 +96,7 @@ unsafe {
 
 fn finish_init(&mut self) -> SECStatus {
 unsafe {
-  do nss_cmd { NSS_SetDomesticPolicy() };
+  nss_cmd(|| NSS_SetDomesticPolicy());
   self.nss_cert_mod = Some(*SECMOD_LoadUserModule("library=libnssckbi.so name=\"Root Certs\"".to_c_str().unwrap(),  ptr::null(), PRFalse));
   if(self.nss_cert_mod.unwrap().loaded != PRTrue) {
      return SECFailure;
@@ -126,11 +126,11 @@ pub fn uninit(&mut self) -> SECStatus {
 
 pub fn trust_cert(file: ~str) -> SECStatus
 {
-    let path = &Path::new(file);
+    let path = &Path::init(file);
     let mut retStatus = SECFailure;
     if(!path.exists()){ return retStatus; }
-    do io_error::cond.trap(|_| { retStatus = SECFailure; }).inside
-    {
+    io_error::cond.trap(|_| { retStatus = SECFailure; }).inside(
+    ||
       unsafe
       {
         let pemdata = str::from_utf8_owned(File::open(path).read_to_end());
@@ -139,13 +139,13 @@ pub fn trust_cert(file: ~str) -> SECStatus
         CERT_DecodeTrustString(&trust, "TCu,Cu,Tu".to_c_str().unwrap());
         retStatus = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), cert, &trust);
       }
-    }
+    );
     retStatus
 }
 
 }
 
-pub fn nss_cmd(blk: &fn() -> SECStatus) {
+pub fn nss_cmd(blk: || -> SECStatus) {
     let result = blk();
     if(result == SECFailure) {
       fail!("NSS Failed with {}", get_nss_error());
