@@ -153,5 +153,13 @@ pub fn nss_cmd(blk: || -> SECStatus) {
 }
 
 pub fn get_nss_error() -> ~str {
-    unsafe { std::str::raw::from_c_str(PR_ErrorToName(PR_GetError())) }
+    unsafe { 
+        let err = PR_GetError();
+        let name = PR_ErrorToName(err);
+        if(name != ptr::null()) {
+        std::str::raw::from_c_str(name)
+        } else {
+            ~"Unknown Error"
+        }
+    }
 }
